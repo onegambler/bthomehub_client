@@ -82,7 +82,17 @@ class BtHomeClient(object):
 
         if response.status_code != 200:
             raise AuthenticationException('Failed to authenticate. Status code: ' + response.status_code)
-        self.authentication = json.loads(response.text)['reply']['actions'][0]['callbacks'][0]['parameters']
+        responseObj = json.loads(response.text)
+        self.authentication = {
+            'server_nonce': responseObj['reply']['actions'][0]['callbacks'][0]['parameters']['nonce'],
+            'session_id': responseObj['reply']['actions'][0]['callbacks'][0]['parameters']['id'],
+            'request_id': 1,
+            'user': 'guest',
+            'password': 'd41d8cd98f00b204e9800998ecf8427e',
+            'auth_hash': md5_hex(user + ':' + server_nonce + ':' + password)
+            'auth_key' : md5_hex(auth_hash + ':' + request_id + ':' + client_nonce + ':JSON:/cgi/json-req')
+        }
+
 
     def get_devices(self):
 
@@ -90,14 +100,6 @@ class BtHomeClient(object):
             self.__authenticate()
 
         client_nonce = str(math.floor(4294967295 * (random.uniform(0, 1))))
-        request_id = '1'
-        server_nonce = self.authentication['nonce']
-        session_id = self.authentication['id']
-        user = 'guest'
-        password = 'd41d8cd98f00b204e9800998ecf8427e'
-
-        auth_hash = md5_hex(user + ':' + server_nonce + ':' + password)
-        auth_key = md5_hex(auth_hash + ':' + request_id + ':' + client_nonce + ':JSON:/cgi/json-req')
 
         listCookieObj = {
             'req_id': request_id,
@@ -175,3 +177,7 @@ def _parse_homehub_response(data_str):
 
 def md5_hex(string):
     return hashlib.md5(string.encode('utf-8')).hexdigest()
+
+
+class Authentication:
+
