@@ -1,6 +1,7 @@
 import json
 import math
 import random
+import threading
 from urllib.parse import quote
 
 import requests
@@ -69,10 +70,12 @@ class BtHomeClient(object):
     }
 
     def __init__(self, host=BT_HOME_HOST, timeout=DEFAULT_TIMEOUT):
+        self.authentication = None
         self.url = 'http://{}/cgi/json-req'.format(host)
         self.timeout = timeout
+        self.lock = threading.RLock()
 
-    def __authenticate(self):
+    def __getAuthenticationParams(self):
         headers = {
             "Cookie": "lang=en; session=" + quote(json.dumps(self.AUTH_COOKIE_OBJ).encode("utf-8"))
         }
@@ -82,22 +85,20 @@ class BtHomeClient(object):
 
         if response.status_code != 200:
             raise AuthenticationException('Failed to authenticate. Status code: ' + response.status_code)
-        responseObj = json.loads(response.text)
-        self.authentication = {
-            'server_nonce': responseObj['reply']['actions'][0]['callbacks'][0]['parameters']['nonce'],
-            'session_id': responseObj['reply']['actions'][0]['callbacks'][0]['parameters']['id'],
-            'request_id': 1,
-            'user': 'guest',
-            'password': 'd41d8cd98f00b204e9800998ecf8427e',
-            'auth_hash': md5_hex(user + ':' + server_nonce + ':' + password)
-            'auth_key' : md5_hex(auth_hash + ':' + request_id + ':' + client_nonce + ':JSON:/cgi/json-req')
-        }
-
+        response = json.loads(response.text)
+        server_nonce = response['reply']['actions'][0]['callbacks'][0]['parameters']['nonce']
+        session_id = response['reply']['actions'][0]['callbacks'][0]['parameters']['id']
+        return Auth(self, session_id=session_id, nonce=server_nonce)
 
     def get_devices(self):
 
         if not self.authentication:
-            self.__authenticate()
+            self.lock.acquire()
+            if not self.authentication:
+                try:
+                    self.authentication = self.__getAuthenticationParams()
+                finally:
+                    self.lock.release()
 
         client_nonce = str(math.floor(4294967295 * (random.uniform(0, 1))))
 
@@ -179,5 +180,14 @@ def md5_hex(string):
     return hashlib.md5(string.encode('utf-8')).hexdigest()
 
 
-class Authentication:
-
+class Auth:
+    def __init__(self, nonce, session_id, request_id='1', user='guest',
+                 password='d41d8cd98f00b204e9800998ecf8427e'):
+        self.server_nonce = nonce
+        self.session_id = session_id
+        self.request_id = request_id
+        self.user = user
+        self.password = password
+        self.client_nonce = str(math.floor(4294967295 * (random.uniform(0, 1))))
+        self.auth_hash = md5_hex(user + ':' + nonce + ':' + password)
+        self.auth_key = md5_hex(self.auth_hash + ':' + request_id + ':' + self.client_nonce + ':JSON:/cgi/json-req')
