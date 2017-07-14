@@ -1,12 +1,13 @@
+import hashlib
 import json
-import math
 import random
 import threading
 from urllib.parse import quote
 
+import math
 import requests
 
-from exception import AuthenticationException
+from exception import AuthenticationException, ResponseException
 
 
 class BtHomeClient(object):
@@ -70,12 +71,12 @@ class BtHomeClient(object):
     }
 
     def __init__(self, host=BT_HOME_HOST, timeout=DEFAULT_TIMEOUT):
-        self.authentication = None
+        self._authentication = None
         self.url = 'http://{}/cgi/json-req'.format(host)
         self.timeout = timeout
         self.lock = threading.RLock()
 
-    def __getAuthenticationParams(self):
+    def _get_authentication(self):
         headers = {
             "Cookie": "lang=en; session=" + quote(json.dumps(self.AUTH_COOKIE_OBJ).encode("utf-8"))
         }
@@ -83,28 +84,29 @@ class BtHomeClient(object):
 
         response = requests.post(self.url, data=request, headers=headers, timeout=self.timeout)
 
+        data = json.loads(response.text)
         if response.status_code != 200:
-            raise AuthenticationException('Failed to authenticate. Status code: ' + response.status_code)
-        response = json.loads(response.text)
-        server_nonce = response['reply']['actions'][0]['callbacks'][0]['parameters']['nonce']
-        session_id = response['reply']['actions'][0]['callbacks'][0]['parameters']['id']
-        return Auth(self, session_id=session_id, nonce=server_nonce)
+            raise AuthenticationException('Failed to authenticate. Status code: %s' % response.status_code)
+        if not self._is_successful(data):
+            raise AuthenticationException('Failed to authenticate. Error: %s' % data['reply']['error']['description'])
+
+        server_nonce = data['reply']['actions'][0]['callbacks'][0]['parameters']['nonce']
+        session_id = data['reply']['actions'][0]['callbacks'][0]['parameters']['id']
+        return Auth(nonce=server_nonce, session_id=session_id)
 
     def get_devices(self):
 
-        if not self.authentication:
+        if not self._authentication:
             self.lock.acquire()
-            if not self.authentication:
+            if not self._authentication:
                 try:
-                    self.authentication = self.__getAuthenticationParams()
+                    self._authentication = self._get_authentication()
                 finally:
                     self.lock.release()
 
-        client_nonce = str(math.floor(4294967295 * (random.uniform(0, 1))))
-
         listCookieObj = {
-            'req_id': request_id,
-            'sess_id': session_id,
+            'req_id': self._authentication.request_id,
+            'sess_id': self._authentication.session_id,
             'basic': False,
             'user': 'guest',
             'dataModel': {
@@ -117,13 +119,15 @@ class BtHomeClient(object):
                 ]
             },
             'ha1': '2d9a6f39b6d41d8cd98f00b204e9800998ecf8427eba8d73fbd3de28879da7dd',
-            'nonce': server_nonce
+            'nonce': self._authentication.server_nonce
         }
+
+        self._authentication.request_id += 1
 
         listReqObj = {
             'request': {
-                'id': request_id,
-                'session-id': session_id,
+                'id': self._authentication.request_id,
+                'session-id': self._authentication.session_id,
                 'priority': False,
                 'actions': [
                     {
@@ -137,51 +141,55 @@ class BtHomeClient(object):
                         }
                     }
                 ],
-                'cnonce': client_nonce,
-                'auth-key': auth_key
+                'cnonce': self._authentication.client_nonce,
+                'auth-key': self._authentication.get_auth_key()
             }
         }
 
+        headers = {
+            "Cookie": "lang=en; session=" + quote(json.dumps(listCookieObj).encode("utf-8"))
+        }
 
-headers = {
-    "Cookie": "lang=en; session=" + quote(json.dumps(listCookieObj).encode("utf-8"))
-}
+        request = "req=" + quote(json.dumps(listReqObj, sort_keys=True).encode("utf-8"))
+        response = requests.post(url=self.url, data=request, headers=headers, timeout=self.timeout)
+        if response.status_code == 401:
+            self._authentication = None
+            raise AuthenticationException('Failed to get list of devices. Session expired')
+        elif response.status_code != 200:
+            raise ResponseException('Failed to get list of devices. Got a %s' % response.status_code)
 
-request = "req=" + quote(json.dumps(listReqObj, sort_keys=True).encode("utf-8"))
-try:
-    response = requests.post(url, data=request, headers=headers, timeout=TIMEOUT)
-except (requests.exceptions.Timeout, requests.exceptions.HTTPError, requests.exceptions.ConnectionError):
-    _LOGGER.exception("Devices - Connection to the router failed")
-else:
-    if response.status_code == 200:
-        return _parse_homehub_response(response.text)
-    else:
-        _LOGGER.error("Invalid response from Home Hub: %s", response)
+        data = json.loads(response.text)
+        if not self._is_successful(data):
+            self._authentication = None
+            raise ResponseException('Failed to get list of devices: %s' % data['reply']['error']['code']['description'])
 
-return None
+        if self._authentication.request_id >= 1000:
+            self._authentication = None
 
+        return self._parse_homehub_response(data)
 
-def _parse_homehub_response(data_str):
-    """Parse the BT Home Hub 5 data format."""
-    known_devices = json.loads(data_str)['reply']['actions'][0]['callbacks'][0]['parameters']['value']
+    @staticmethod
+    def _is_successful(data):
+        return data['reply']['error']['code'] == 16777216
 
-    devices = {}
+    @staticmethod
+    def _parse_homehub_response(data):
+        """Parse the BT Home Hub data format."""
+        known_devices = data['reply']['actions'][0]['callbacks'][0]['parameters']['value']
 
-    for device in known_devices:
-        mac = device['PhysAddress'].upper()
-        name = device['HostName'] or mac.lower().replace('-', '')
-        if device['Active']:
-            devices[mac] = name
+        devices = {}
 
-    return devices
+        for device in known_devices:
+            mac = device['PhysAddress'].upper()
+            name = device['HostName'] or mac.lower().replace('-', '')
+            if device['Active']:
+                devices[mac] = name
 
-
-def md5_hex(string):
-    return hashlib.md5(string.encode('utf-8')).hexdigest()
+        return devices
 
 
 class Auth:
-    def __init__(self, nonce, session_id, request_id='1', user='guest',
+    def __init__(self, nonce, session_id, request_id=0, user='guest',
                  password='d41d8cd98f00b204e9800998ecf8427e'):
         self.server_nonce = nonce
         self.session_id = session_id
@@ -189,5 +197,12 @@ class Auth:
         self.user = user
         self.password = password
         self.client_nonce = str(math.floor(4294967295 * (random.uniform(0, 1))))
-        self.auth_hash = md5_hex(user + ':' + nonce + ':' + password)
-        self.auth_key = md5_hex(self.auth_hash + ':' + request_id + ':' + self.client_nonce + ':JSON:/cgi/json-req')
+        self.auth_hash = self._md5_hex(self.user + ':' + self.server_nonce + ':' + self.password)
+
+    def get_auth_key(self):
+        return self._md5_hex(
+            self.auth_hash + ':' + str(self.request_id) + ':' + self.client_nonce + ':JSON:/cgi/json-req')
+
+    @staticmethod
+    def _md5_hex(string):
+        return hashlib.md5(string.encode('utf-8')).hexdigest()
