@@ -76,7 +76,7 @@ class BtHomeClient(object):
         self.timeout = timeout
         self.lock = threading.RLock()
 
-    def _get_authentication(self):
+    def authenticate(self):
         headers = {
             "Cookie": "lang=en; session=" + quote(json.dumps(self.AUTH_COOKIE_OBJ).encode("utf-8"))
         }
@@ -92,7 +92,7 @@ class BtHomeClient(object):
 
         server_nonce = data['reply']['actions'][0]['callbacks'][0]['parameters']['nonce']
         session_id = data['reply']['actions'][0]['callbacks'][0]['parameters']['id']
-        return Auth(nonce=server_nonce, session_id=session_id)
+        self._authentication = Auth(nonce=server_nonce, session_id=session_id)
 
     def get_devices(self):
 
@@ -100,7 +100,7 @@ class BtHomeClient(object):
             self.lock.acquire()
             if not self._authentication:
                 try:
-                    self._authentication = self._get_authentication()
+                   self.authenticate()
                 finally:
                     self.lock.release()
 
