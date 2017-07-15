@@ -6,8 +6,6 @@ At present, only device listing has been implemented: it returns a list of all c
 ## Usage
 
 ```python
-import time
-
 import bthomeclient
 
 client = bthomeclient.BtHomeClient()
