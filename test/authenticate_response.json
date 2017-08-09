@@ -1,0 +1,31 @@
+{
+  "reply": {
+    "uid": 0,
+    "id": 0,
+    "error": {
+      "code": 16777216,
+      "description": "Ok"
+    },
+    "actions": [{
+      "uid": 1,
+      "id": 0,
+      "error": {
+        "code": 16777238,
+        "description": "Applied"
+      },
+      "callbacks": [{
+        "uid": 1,
+        "result": {
+          "code": 16777238,
+          "description": "Applied"
+        },
+        "xpath": "Device",
+        "parameters": {
+          "id": 11111111,
+          "nonce": "2222222222"
+        }
+      }]
+    }],
+    "events": []
+  }
+}

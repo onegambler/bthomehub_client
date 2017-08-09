@@ -7,7 +7,7 @@ from urllib.parse import quote
 import math
 import requests
 
-from exception import AuthenticationException, ResponseException
+from bthomehub.exception import AuthenticationException, ResponseException
 
 
 class BtHomeClient(object):
@@ -29,7 +29,7 @@ class BtHomeClient(object):
                        'ha1': 'ca6e4940afd41d8cd98f00b204e9800998ecf8427e830e7a046fd8d92ecec8e4',
                        'nonce': ''}
 
-    AUTH_REQUEST_OBJ = authRequestObj = {
+    AUTH_REQUEST_OBJ = {
         'request': {
             'id': 0,
             'session-id': 0,
@@ -83,7 +83,6 @@ class BtHomeClient(object):
         request = "req=" + quote(json.dumps(self.AUTH_REQUEST_OBJ, sort_keys=True).encode("utf-8"))
 
         response = requests.post(self.url, data=request, headers=headers, timeout=self.timeout)
-
         data = json.loads(response.text)
         if response.status_code != 200:
             raise AuthenticationException('Failed to authenticate. Status code: %s' % response.status_code)
@@ -94,17 +93,21 @@ class BtHomeClient(object):
         session_id = data['reply']['actions'][0]['callbacks'][0]['parameters']['id']
         self._authentication = Auth(nonce=server_nonce, session_id=session_id)
 
-    def get_devices(self):
+    def get_devices(self) -> dict:
 
+        """
+        Returns the list of connected devices
+        :rtype: a dictionary containing all the devices connected to the bt home hub
+        """
         if not self._authentication:
             self.lock.acquire()
             if not self._authentication:
                 try:
-                   self.authenticate()
+                    self.authenticate()
                 finally:
                     self.lock.release()
 
-        listCookieObj = {
+        list_cookie_obj = {
             'req_id': self._authentication.request_id,
             'sess_id': self._authentication.session_id,
             'basic': False,
@@ -124,7 +127,7 @@ class BtHomeClient(object):
 
         self._authentication.request_id += 1
 
-        listReqObj = {
+        list_req_obj = {
             'request': {
                 'id': self._authentication.request_id,
                 'session-id': self._authentication.session_id,
@@ -147,10 +150,10 @@ class BtHomeClient(object):
         }
 
         headers = {
-            "Cookie": "lang=en; session=" + quote(json.dumps(listCookieObj).encode("utf-8"))
+            "Cookie": "lang=en; session=" + quote(json.dumps(list_cookie_obj).encode("utf-8"))
         }
 
-        request = "req=" + quote(json.dumps(listReqObj, sort_keys=True).encode("utf-8"))
+        request = "req=" + quote(json.dumps(list_req_obj, sort_keys=True).encode("utf-8"))
         response = requests.post(url=self.url, data=request, headers=headers, timeout=self.timeout)
         if response.status_code == 401:
             self._authentication = None
