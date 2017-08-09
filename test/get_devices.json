@@ -1,0 +1,89 @@
+{
+  "reply": {
+    "uid": 0,
+    "id": 1,
+    "error": {
+      "code": 16777216,
+      "description": "Ok"
+    },
+    "actions": [
+      {
+        "uid": 1,
+        "id": 1,
+        "error": {
+          "code": 16777238,
+          "description": "Applied"
+        },
+        "callbacks": [
+          {
+            "uid": 1,
+            "result": {
+              "code": 16777238,
+              "description": "Applied"
+            },
+            "xpath": "Device\/Hosts\/Hosts",
+            "parameters": {
+              "value": [
+                {
+                  "uid": 1,
+                  "Alias": "cpe-1",
+                  "PhysAddress": "a1:27:a1:a1:40:a1",
+                  "IPAddress": "192.168.1.1",
+                  "AddressSource": "DHCP",
+                  "DHCPClient": "Device\/DHCPv4\/Server\/Pools\/Pool[@uid='1']\/Clients\/Client[@uid='6']",
+                  "LeaseTimeRemaining": -300163,
+                  "AssociatedDevice": "",
+                  "Layer1Interface": "Device\/Ethernet\/Interfaces\/Interface[PHY1]",
+                  "Layer3Interface": "Device\/IP\/Interfaces\/Interface[Alias='IP_BR_LAN']",
+                  "VendorClassID": "vendor",
+                  "ClientID": "a1:27:a1:a1:40:a1",
+                  "UserClassID": "",
+                  "HostName": "raspberrypi",
+                  "Active": true,
+                  "LeaseStart": 116,
+                  "LeaseDuration": 86400,
+                  "InterfaceType": "Ethernet",
+                  "DetectedDeviceType": "",
+                  "LastStateChange": "2017-07-30T17:00:47+0100",
+                  "UserFriendlyName": "",
+                  "UserHostName": "",
+                  "UserDeviceType": "MISCELLANEOUS",
+                  "Icon": "",
+                  "Room": "",
+                  "BlacklistEnable": true,
+                  "UnblockHoursCount": 0,
+                  "Blacklisted": false,
+                  "BlacklistStatus": false,
+                  "BlacklistedAccordingToSchedule": true,
+                  "BlacklistedSchedule": [],
+                  "Hidden": false,
+                  "Options": [],
+                  "VendorClassIDv6": "",
+                  "SysfsId": "",
+                  "IPv4Addresses": [
+                    {
+                      "uid": 1,
+                      "IPAddress": "192.168.1.1",
+                      "Active": true
+                    }
+                  ],
+                  "IPv6Addresses": [],
+                  "DeviceTypeAssociation": "",
+                  "LastConnections": [
+                    {
+                      "uid": 1,
+                      "ConnectionTimestamp": "2017-07-26T07:39:46+0100",
+                      "DisconnectionTimestamp": "0001-01-01T00:00:00+0000"
+                    }
+                  ],
+                  "ConnectionsNbreAtLastReboot": 0
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "events": []
+  }
+}
