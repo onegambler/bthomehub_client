@@ -7,7 +7,7 @@ from urllib.parse import quote
 import math
 import requests
 
-from exception import AuthenticationException, ResponseException
+from bthomehub.exception import AuthenticationException, ResponseException
 
 
 class BtHomeClient(object):
