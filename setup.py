@@ -1,7 +1,7 @@
 from setuptools import setup
 
-setup(name='bthomehubclient',
-      py_modules=["bthomehubclient"],
+setup(name='bthomehub',
+      packages=["bthomehub"],
       version='1.0',
       description='A Python client that can interact with BT Home Hub routers.',
       url='https://github.com/onegambler/bthomehub_client',

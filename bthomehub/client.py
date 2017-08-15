@@ -2,11 +2,12 @@ import hashlib
 import json
 import math
 import random
-import requests
 import threading
 from urllib.parse import quote
 
-from exception import AuthenticationException, ResponseException
+import requests
+
+from bthomehub.exception import AuthenticationException, ResponseException
 
 
 class BtHomeClient(object):
