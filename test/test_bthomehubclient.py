@@ -3,7 +3,7 @@ from unittest import TestCase
 from unittest.mock import ANY
 from unittest.mock import patch
 
-from bthomehub.bthomeclient import BtHomeClient
+from bthomehubclient import BtHomeClient
 
 
 def mocked_requests_post(*args, **kwargs):
