@@ -8,7 +8,7 @@ setup(name='bthomehub',
       download_url='https://github.com/onegambler/bthomehub_client/archive/1.0.tar.gz',
       author='oneGambler',
       author_email='onegambler@outlook.com',
-      license='MIT',
+      license='UNLICENSE',
       install_requires=[
           'requests'
       ],

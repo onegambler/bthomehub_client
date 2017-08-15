@@ -1,0 +1,11 @@
+
+[distutils]
+index-servers =
+  pypi
+
+[pypi]
+username=<USERNAME>
+password=<PWD>
+
+python setup.py sdist bdist_wheel
+twine upload dist/*v
