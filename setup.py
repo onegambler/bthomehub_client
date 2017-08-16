@@ -6,8 +6,8 @@ setup(name='bthomehub',
       description='A Python client that can interact with BT Home Hub routers.',
       url='https://github.com/onegambler/bthomehub_client',
       download_url='https://github.com/onegambler/bthomehub_client/archive/1.0.tar.gz',
-      author='Roberto Magale',
-      author_email='onegambler@outlook.com',
+      author='',
+      author_email='',
       license='UNLICENSE',
       install_requires=[
           'requests'
