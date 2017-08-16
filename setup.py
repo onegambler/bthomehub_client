@@ -1,14 +1,16 @@
 from setuptools import setup
 
-setup(name='bthomehub_client',
-      version='0.1',
+setup(name='bthomehub',
+      packages=["bthomehub"],
+      version='1.0',
       description='A Python client that can interact with BT Home Hub routers.',
       url='https://github.com/onegambler/bthomehub_client',
-      author='oneGambler',
+      download_url='https://github.com/onegambler/bthomehub_client/archive/1.0.tar.gz',
+      author='',
       author_email='',
-      license='MIT',
-      packages=['bthomehub'],
+      license='UNLICENSE',
       install_requires=[
           'requests'
       ],
+      keywords=['bt home hub', 'devices list'],
       zip_safe=False)

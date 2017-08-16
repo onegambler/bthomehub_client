@@ -3,7 +3,8 @@ from unittest import TestCase
 from unittest.mock import ANY
 from unittest.mock import patch
 
-from bthomehub.bthomeclient import BtHomeClient
+from bthomehub.client import BtHomeClient
+from bthomehub.exception import AuthenticationException
 
 
 def mocked_requests_post(*args, **kwargs):
@@ -41,23 +42,15 @@ class TestBtHomeClient(TestCase):
         )
 
     @patch('requests.post', side_effect=mocked_requests_post)
-    def test__get_devices_authenticate_first_if_not_done_before(self, mock_post):
+    def test__get_devices_throws_exception_if_not_authenticated(self, mock_post):
         client = BtHomeClient()
         self.assertIsNone(client._authentication)
-        client.get_devices()
-        self.assertIsNotNone(client._authentication)
-        mock_post.assert_called_with(
-            url='http://bthomehub.home/cgi/json-req',
-            data=ANY,
-            headers=ANY,
-            timeout=10
-        )
-        self.assertEqual(mock_post.call_count, 2)
-        self.assertIsNotNone(client._authentication)
+        self.assertRaises(AuthenticationException, client.get_devices)
 
     @patch('requests.post', side_effect=mocked_requests_post)
     def test__get_devices(self, mock_post):
         client = BtHomeClient()
+        client.authenticate()
         devices = client.get_devices()
         self.assertEqual(devices, {'A1:27:A1:A1:40:A1': 'raspberrypi'})
 

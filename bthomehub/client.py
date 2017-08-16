@@ -1,10 +1,9 @@
 import hashlib
 import json
+import math
 import random
-import threading
 from urllib.parse import quote
 
-import math
 import requests
 
 from bthomehub.exception import AuthenticationException, ResponseException
@@ -74,9 +73,9 @@ class BtHomeClient(object):
         self._authentication = None
         self.url = 'http://{}/cgi/json-req'.format(host)
         self.timeout = timeout
-        self.lock = threading.RLock()
 
     def authenticate(self):
+
         headers = {
             "Cookie": "lang=en; session=" + quote(json.dumps(self.AUTH_COOKIE_OBJ).encode("utf-8"))
         }
@@ -87,7 +86,8 @@ class BtHomeClient(object):
         if response.status_code != 200:
             raise AuthenticationException('Failed to authenticate. Status code: %s' % response.status_code)
         if not self._is_successful(data):
-            raise AuthenticationException('Failed to authenticate. Error: %s' % data['reply']['error']['description'])
+            raise AuthenticationException(
+                'Failed to authenticate. Error: %s' % data['reply']['error']['description'])
 
         server_nonce = data['reply']['actions'][0]['callbacks'][0]['parameters']['nonce']
         session_id = data['reply']['actions'][0]['callbacks'][0]['parameters']['id']
@@ -99,13 +99,10 @@ class BtHomeClient(object):
         Returns the list of connected devices
         :rtype: a dictionary containing all the devices connected to the bt home hub
         """
-        if not self._authentication:
-            self.lock.acquire()
-            if not self._authentication:
-                try:
-                    self.authenticate()
-                finally:
-                    self.lock.release()
+
+        if self._authentication is None:
+            raise AuthenticationException('Client not authenticated. Please authenticate first, using "authenticated '
+                                          'function')
 
         list_cookie_obj = {
             'req_id': self._authentication.request_id,
@@ -156,24 +153,23 @@ class BtHomeClient(object):
         request = "req=" + quote(json.dumps(list_req_obj, sort_keys=True).encode("utf-8"))
         response = requests.post(url=self.url, data=request, headers=headers, timeout=self.timeout)
         if response.status_code == 401:
-            self._authentication = None
             raise AuthenticationException('Failed to get list of devices. Session expired')
         elif response.status_code != 200:
             raise ResponseException('Failed to get list of devices. Got a %s' % response.status_code)
 
         data = json.loads(response.text)
         if not self._is_successful(data):
-            self._authentication = None
             raise ResponseException('Failed to get list of devices: %s' % data['reply']['error']['code']['description'])
 
-        if self._authentication.request_id >= 1000:
-            self._authentication = None
+        # We don't let the request id grow exponentially
+        if self._authentication.request_id > 1000000000:
+            self._authentication.request_id = 0
 
         return self._parse_homehub_response(data)
 
     @staticmethod
     def _is_successful(data):
-        return data['reply']['error']['code'] == 16777216
+        return data and data.get('reply', {}).get('error', {}).get('code', {}) == 16777216
 
     @staticmethod
     def _parse_homehub_response(data):
@@ -192,8 +188,7 @@ class BtHomeClient(object):
 
 
 class Auth:
-    def __init__(self, nonce, session_id, request_id=0, user='guest',
-                 password='d41d8cd98f00b204e9800998ecf8427e'):
+    def __init__(self, nonce, session_id, request_id=0, user='guest', password='d41d8cd98f00b204e9800998ecf8427e'):
         self.server_nonce = nonce
         self.session_id = session_id
         self.request_id = request_id
