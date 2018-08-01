@@ -10,5 +10,7 @@ import bthomeclient
 
 client = bthomeclient.BtHomeClient()
 
+client.authenticate()
+
 print(client.get_devices())
 ```

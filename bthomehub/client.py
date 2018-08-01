@@ -75,6 +75,10 @@ class BtHomeClient(object):
         self.timeout = timeout
 
     def authenticate(self):
+        """
+        Authenticates the client by creating a new session. The session is automatically renewed so
+        there is no need to authenticate again, unless an explicit AuthenticationException is thrown.
+        """
 
         headers = {
             "Cookie": "lang=en; session=" + quote(json.dumps(self.AUTH_COOKIE_OBJ).encode("utf-8"))
@@ -93,11 +97,13 @@ class BtHomeClient(object):
         session_id = data['reply']['actions'][0]['callbacks'][0]['parameters']['id']
         self._authentication = Auth(nonce=server_nonce, session_id=session_id)
 
-    def get_devices(self) -> dict:
-
+    def get_devices(self, only_active=True) -> list:
         """
         Returns the list of connected devices
-        :rtype: a dictionary containing all the devices connected to the bt home hub
+
+        :param only_active: a flag indicating whether only currently active (connected) devices should be returned.
+        Default `True`
+        :return: a dictionary containing all the devices connected to the bt home hub
         """
 
         if self._authentication is None:
@@ -168,28 +174,38 @@ class BtHomeClient(object):
             self.authenticate()
             self._authentication.request_id = 0
 
-        return self._parse_homehub_response(data)
+        return self._parse_homehub_response(data, only_active)
 
     @staticmethod
     def _is_successful(data):
         return data and data.get('reply', {}).get('error', {}).get('code', {}) == 16777216
-    
+
     @staticmethod
     def _is_invalid_user_session(data):
         return data and data.get('reply', {}).get('error', {}).get('code', {}) == 16777219
 
     @staticmethod
-    def _parse_homehub_response(data):
+    def _parse_homehub_response(data, only_active):
         """Parse the BT Home Hub data format."""
         known_devices = data['reply']['actions'][0]['callbacks'][0]['parameters']['value']
 
-        devices = {}
+        devices = []
 
         for device in known_devices:
-            mac = device['PhysAddress'].upper()
-            name = device['HostName'] or mac.lower().replace('-', '')
-            if device['Active']:
-                devices[mac] = name
+            if not only_active or device['Active']:
+                device = Device(
+                    mac_address=device['PhysAddress'].upper(),
+                    ip_address=device['IPAddress'],
+                    address_source=device['AddressSource'],
+                    name=device['UserHostName'] or device['HostName'],
+                    interface=device['InterfaceType'],
+                    active=device['Active'],
+                    user_friendly_name=device['UserFriendlyName'],
+                    detected_device_type=device['DetectedDeviceType'],
+                    user_device_type=device['UserDeviceType']
+                )
+
+                devices.append(device)
 
         return devices
 
@@ -211,3 +227,25 @@ class Auth:
     @staticmethod
     def _md5_hex(string):
         return hashlib.md5(string.encode('utf-8')).hexdigest()
+
+
+class Device:
+    def __init__(self,
+                 mac_address: str,
+                 ip_address: str,
+                 address_source: str,
+                 name: str,
+                 interface: str,
+                 active: bool,
+                 user_friendly_name: str,
+                 detected_device_type: str,
+                 user_device_type: str):
+        self.user_device_type = user_device_type
+        self.detected_device_type = detected_device_type
+        self.user_friendly_name = user_friendly_name
+        self.active = active
+        self.interface = interface
+        self.name = name
+        self.address_source = address_source
+        self.ip_address = ip_address
+        self.mac_address = mac_address
