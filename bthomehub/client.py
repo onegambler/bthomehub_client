@@ -2,11 +2,16 @@ import hashlib
 import json
 import math
 import random
+from collections import namedtuple
 from urllib.parse import quote
 
 import requests
 
 from bthomehub.exception import AuthenticationException, ResponseException
+
+Device = namedtuple(
+    "Device", ["mac_address", "ip_address", "name", "address_source", "interface", "active",
+               "user_friendly_name", "detected_device_type", "user_device_type"])
 
 
 class BtHomeClient(object):
@@ -227,25 +232,3 @@ class Auth:
     @staticmethod
     def _md5_hex(string):
         return hashlib.md5(string.encode('utf-8')).hexdigest()
-
-
-class Device:
-    def __init__(self,
-                 mac_address: str,
-                 ip_address: str,
-                 address_source: str,
-                 name: str,
-                 interface: str,
-                 active: bool,
-                 user_friendly_name: str,
-                 detected_device_type: str,
-                 user_device_type: str):
-        self.user_device_type = user_device_type
-        self.detected_device_type = detected_device_type
-        self.user_friendly_name = user_friendly_name
-        self.active = active
-        self.interface = interface
-        self.name = name
-        self.address_source = address_source
-        self.ip_address = ip_address
-        self.mac_address = mac_address
