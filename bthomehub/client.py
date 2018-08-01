@@ -159,10 +159,13 @@ class BtHomeClient(object):
 
         data = json.loads(response.text)
         if not self._is_successful(data):
-            raise ResponseException('Failed to get list of devices: %s' % data['reply']['error']['code']['description'])
+            if self._is_invalid_user_session(data):
+                self.authenticate()
+            raise ResponseException('Failed to get list of devices. Reason: %s' % data['reply']['error']['description'])
 
         # We don't let the request id grow exponentially
-        if self._authentication.request_id > 1000000000:
+        if self._authentication.request_id > 100000:
+            self.authenticate()
             self._authentication.request_id = 0
 
         return self._parse_homehub_response(data)
@@ -170,6 +173,10 @@ class BtHomeClient(object):
     @staticmethod
     def _is_successful(data):
         return data and data.get('reply', {}).get('error', {}).get('code', {}) == 16777216
+    
+    @staticmethod
+    def _is_invalid_user_session(data):
+        return data and data.get('reply', {}).get('error', {}).get('code', {}) == 16777219
 
     @staticmethod
     def _parse_homehub_response(data):
