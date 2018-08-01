@@ -2,11 +2,16 @@ import hashlib
 import json
 import math
 import random
+from collections import namedtuple
 from urllib.parse import quote
 
 import requests
 
 from bthomehub.exception import AuthenticationException, ResponseException
+
+Device = namedtuple(
+    "Device", ["mac_address", "ip_address", "name", "address_source", "interface", "active",
+               "user_friendly_name", "detected_device_type", "user_device_type"])
 
 
 class BtHomeClient(object):
@@ -75,6 +80,10 @@ class BtHomeClient(object):
         self.timeout = timeout
 
     def authenticate(self):
+        """
+        Authenticates the client by creating a new session. The session is automatically renewed so
+        there is no need to authenticate again, unless an explicit AuthenticationException is thrown.
+        """
 
         headers = {
             "Cookie": "lang=en; session=" + quote(json.dumps(self.AUTH_COOKIE_OBJ).encode("utf-8"))
@@ -93,11 +102,13 @@ class BtHomeClient(object):
         session_id = data['reply']['actions'][0]['callbacks'][0]['parameters']['id']
         self._authentication = Auth(nonce=server_nonce, session_id=session_id)
 
-    def get_devices(self) -> dict:
-
+    def get_devices(self, only_active=True) -> list:
         """
         Returns the list of connected devices
-        :rtype: a dictionary containing all the devices connected to the bt home hub
+
+        :param only_active: a flag indicating whether only currently active (connected) devices should be returned.
+        Default `True`
+        :return: a dictionary containing all the devices connected to the bt home hub
         """
 
         if self._authentication is None:
@@ -168,28 +179,38 @@ class BtHomeClient(object):
             self.authenticate()
             self._authentication.request_id = 0
 
-        return self._parse_homehub_response(data)
+        return self._parse_homehub_response(data, only_active)
 
     @staticmethod
     def _is_successful(data):
         return data and data.get('reply', {}).get('error', {}).get('code', {}) == 16777216
-    
+
     @staticmethod
     def _is_invalid_user_session(data):
         return data and data.get('reply', {}).get('error', {}).get('code', {}) == 16777219
 
     @staticmethod
-    def _parse_homehub_response(data):
+    def _parse_homehub_response(data, only_active):
         """Parse the BT Home Hub data format."""
         known_devices = data['reply']['actions'][0]['callbacks'][0]['parameters']['value']
 
-        devices = {}
+        devices = []
 
         for device in known_devices:
-            mac = device['PhysAddress'].upper()
-            name = device['HostName'] or mac.lower().replace('-', '')
-            if device['Active']:
-                devices[mac] = name
+            if not only_active or device['Active']:
+                device = Device(
+                    mac_address=device['PhysAddress'].upper(),
+                    ip_address=device['IPAddress'],
+                    address_source=device['AddressSource'],
+                    name=device['UserHostName'] or device['HostName'],
+                    interface=device['InterfaceType'],
+                    active=device['Active'],
+                    user_friendly_name=device['UserFriendlyName'],
+                    detected_device_type=device['DetectedDeviceType'],
+                    user_device_type=device['UserDeviceType']
+                )
+
+                devices.append(device)
 
         return devices
 

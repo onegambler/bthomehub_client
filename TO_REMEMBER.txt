@@ -8,4 +8,4 @@ username=<USERNAME>
 password=<PWD>
 
 python setup.py sdist bdist_wheel
-twine upload dist/*v
+twine upload dist/*
