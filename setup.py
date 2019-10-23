@@ -10,7 +10,7 @@ setup(name='bthomehub',
       author_email='',
       license='UNLICENSE',
       install_requires=[
-          'requests==2.18.3'
+          'requests==2.20.0'
       ],
       keywords=['bt home hub', 'devices list'],
       zip_safe=False)
